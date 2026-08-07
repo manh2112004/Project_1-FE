@@ -15,6 +15,7 @@ import { PermissionGuard } from './components/auth/PermissionGuard';
 // Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AdminLoginPage } from './pages/auth/AdminLoginPage';
 
 // Client Pages
@@ -54,6 +55,7 @@ export const App: React.FC = () => {
           {/* Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
 
           {/* Client Storefront Routes */}
