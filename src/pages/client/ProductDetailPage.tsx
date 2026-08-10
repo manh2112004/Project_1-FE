@@ -179,64 +179,89 @@ export const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Quantity Controls */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-300">Số lượng (tối đa 99)</label>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                <button
-                  type="button"
-                  disabled={quantity <= 1}
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
+          {(() => {
+            const stock = product.stockQuantity ?? product.inventory?.quantity ?? 0;
+            const isOutOfStock = stock <= 0;
+            const maxLimit = isOutOfStock ? 1 : Math.min(99, stock);
 
-                <input
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={quantity}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (isNaN(val)) setQuantity(1);
-                    else setQuantity(Math.min(99, Math.max(1, val)));
-                  }}
-                  onBlur={() => {
-                    if (!quantity || quantity < 1) setQuantity(1);
-                    if (quantity > 99) setQuantity(99);
-                  }}
-                  className="w-14 text-center text-sm font-bold text-white bg-transparent focus:outline-none focus:bg-slate-800/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-slate-800/50 py-1"
-                />
+            return (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-300">Số lượng mua</label>
+                    {isOutOfStock ? (
+                      <span className="text-xs font-bold bg-rose-500/20 border border-rose-500/30 text-rose-400 px-3 py-1 rounded-full">
+                        Hết hàng trong kho
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                        Còn hàng: <strong className="font-bold text-emerald-300">{stock}</strong> sản phẩm
+                      </span>
+                    )}
+                  </div>
 
-                <button
-                  type="button"
-                  disabled={quantity >= 99}
-                  onClick={() => setQuantity((q) => Math.min(99, q + 1))}
-                  className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                      <button
+                        type="button"
+                        disabled={isOutOfStock || quantity <= 1}
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
 
-          {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-2">
-            <button
-              onClick={handleAddToCart}
-              className="flex-1 py-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 hover:bg-indigo-600/20 text-indigo-400 hover:text-white font-bold text-sm flex items-center justify-center gap-2 transition-all"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Thêm Vào Giỏ Hàng</span>
-            </button>
-            <button
-              onClick={handleBuyNow}
-              className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-xl shadow-indigo-500/30 transition-all hover:scale-105"
-            >
-              Mua Ngay
-            </button>
-          </div>
+                      <input
+                        type="number"
+                        disabled={isOutOfStock}
+                        min={1}
+                        max={maxLimit}
+                        value={isOutOfStock ? 0 : quantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (isNaN(val)) setQuantity(1);
+                          else setQuantity(Math.min(maxLimit, Math.max(1, val)));
+                        }}
+                        onBlur={() => {
+                          if (!quantity || quantity < 1) setQuantity(1);
+                          if (quantity > maxLimit) setQuantity(maxLimit);
+                        }}
+                        className="w-14 text-center text-sm font-bold text-white bg-transparent focus:outline-none focus:bg-slate-800/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-slate-800/50 py-1 disabled:opacity-40"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={isOutOfStock || quantity >= maxLimit}
+                        onClick={() => setQuantity((q) => Math.min(maxLimit, q + 1))}
+                        className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action CTAs */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                  <button
+                    disabled={isOutOfStock}
+                    onClick={handleAddToCart}
+                    className="flex-1 py-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 hover:bg-indigo-600/20 text-indigo-400 hover:text-white disabled:opacity-40 disabled:hover:bg-slate-900 disabled:hover:text-indigo-400 font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>{isOutOfStock ? 'Sản Phẩm Tạm Hết Hàng' : 'Thêm Vào Giỏ Hàng'}</span>
+                  </button>
+                  <button
+                    disabled={isOutOfStock}
+                    onClick={handleBuyNow}
+                    className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white disabled:opacity-40 disabled:hover:from-indigo-600 disabled:hover:to-violet-600 font-bold text-sm shadow-xl shadow-indigo-500/30 transition-all hover:scale-105"
+                  >
+                    Mua Ngay
+                  </button>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Guarantee Badges */}
           <div className="pt-6 border-t border-slate-800/80 grid grid-cols-2 gap-4 text-xs text-slate-400">

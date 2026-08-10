@@ -84,10 +84,34 @@ export const CheckoutPage: React.FC = () => {
 
       const res = await api.post('/orders/checkout', payload);
       if (res.data?.success) {
+        const createdOrder = res.data.data;
+
+        if (paymentMethod === 'PAYOS' && createdOrder?.id) {
+          addToast({
+            type: 'info',
+            title: 'Đang kết nối PayOS',
+            message: 'Hệ thống đang khởi tạo liên kết thanh toán VietQR...',
+          });
+          try {
+            const payosRes = await api.post('/payments/payos/create-link', { orderId: createdOrder.id });
+            if (payosRes.data?.success && payosRes.data?.data?.checkoutUrl) {
+              await clearCart();
+              window.location.href = payosRes.data.data.checkoutUrl;
+              return;
+            }
+          } catch (payosErr: any) {
+            addToast({
+              type: 'error',
+              title: 'Lỗi khởi tạo thanh toán PayOS',
+              message: payosErr.response?.data?.message || 'Không thể tạo liên kết thanh toán VietQR PayOS.',
+            });
+          }
+        }
+
         addToast({
           type: 'success',
           title: 'Đặt hàng thành công!',
-          message: `Mã đơn hàng của bạn: ${res.data.data?.orderCode || 'ORD'}`,
+          message: `Mã đơn hàng của bạn: ${createdOrder?.orderCode || 'ORD'}`,
         });
         await clearCart();
         navigate('/orders');
@@ -129,11 +153,10 @@ export const CheckoutPage: React.FC = () => {
                     key={addr.id}
                     type="button"
                     onClick={() => handleSelectAddress(addr.id)}
-                    className={`p-4 rounded-2xl border text-left transition-all ${
-                      selectedAddressId === addr.id
+                    className={`p-4 rounded-2xl border text-left transition-all ${selectedAddressId === addr.id
                         ? 'border-indigo-500 bg-indigo-500/10 text-white'
                         : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-bold text-xs text-white">{addr.recipientName}</span>
@@ -227,9 +250,10 @@ export const CheckoutPage: React.FC = () => {
               <CreditCard className="w-4 h-4 text-indigo-400" /> Phương Thức Thanh Toán
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { id: 'COD', label: 'Thanh toán khi nhận (COD)', desc: 'Tiền mặt khi giao hàng' },
+                { id: 'PAYOS', label: 'Cổng PayOS (VietQR)', desc: 'Quét mã QR Ngân hàng' },
                 { id: 'VNPAY', label: 'Ví VNPay', desc: 'Quét mã QR VNPay' },
                 { id: 'MOMO', label: 'Ví MoMo', desc: 'Thanh toán ví MoMo' },
               ].map((pm) => (
@@ -237,11 +261,10 @@ export const CheckoutPage: React.FC = () => {
                   key={pm.id}
                   type="button"
                   onClick={() => setPaymentMethod(pm.id as PaymentMethod)}
-                  className={`p-4 rounded-2xl border text-left transition-all ${
-                    paymentMethod === pm.id
-                      ? 'border-indigo-500 bg-indigo-500/10 text-white'
+                  className={`p-4 rounded-2xl border text-left transition-all ${paymentMethod === pm.id
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/10'
                       : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
-                  }`}
+                    }`}
                 >
                   <span className="font-bold text-xs block text-white">{pm.label}</span>
                   <span className="text-[11px] text-slate-400 mt-1 block">{pm.desc}</span>

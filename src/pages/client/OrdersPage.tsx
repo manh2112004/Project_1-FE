@@ -60,7 +60,34 @@ export const OrdersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchMyOrders();
+    // Tự động kiểm tra và xác nhận thanh toán PayOS khi quay lại trang
+    const query = new URLSearchParams(window.location.search);
+    const status = query.get('status');
+    const orderId = query.get('orderId');
+
+    if (status === 'success' && orderId) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      api
+        .post('/payments/payos/confirm', { orderId })
+        .then((res) => {
+          if (res.data?.success) {
+            addToast({
+              type: 'success',
+              title: 'Thanh toán thành công!',
+              message: 'Đơn hàng đã được cập nhật thanh toán và trừ kho thành công.',
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Lỗi xác nhận thanh toán:', err);
+        })
+        .finally(() => {
+          fetchMyOrders();
+        });
+    } else {
+      fetchMyOrders();
+    }
 
     const handleSseOrderUpdate = () => {
       fetchMyOrders();

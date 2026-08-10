@@ -1,5 +1,5 @@
 export type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-export type PaymentMethod = "COD" | "VNPAY" | "MOMO";
+export type PaymentMethod = "COD" | "VNPAY" | "MOMO" | "PAYOS";
 export type PaymentStatus = "UNPAID" | "PAID" | "REFUNDED";
 export type SystemRole = "SUPER_ADMIN" | "ADMIN" | "STAFF" | "CUSTOMER";
 export type UserStatus = "ACTIVE" | "BLOCKED" | "PENDING";
@@ -110,6 +110,7 @@ export interface Product {
   brand?: Brand;
   images?: ProductImage[];
   inventory?: Inventory;
+  stockQuantity?: number;
   createdAt?: string;
   updatedAt?: string;
 }
