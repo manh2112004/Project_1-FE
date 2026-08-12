@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   Sparkles,
+  Store,
 } from 'lucide-react';
 
 export const AdminSidebar: React.FC = () => {
@@ -20,6 +21,7 @@ export const AdminSidebar: React.FC = () => {
 
   const menuItems = [
     { title: 'Dashboard', path: '/admin', icon: LayoutDashboard, permission: null },
+    { title: 'Quản lý Gian hàng', path: '/admin/stores', icon: Store, permission: null },
     { title: 'Quản lý Đơn hàng', path: '/admin/orders', icon: ShoppingBag, permission: 'READ_ORDER' },
     { title: 'Quản lý Sản phẩm', path: '/admin/products', icon: Package, permission: 'READ_PRODUCT' },
     { title: 'Quản lý Danh mục', path: '/admin/categories', icon: Layers, permission: 'READ_CATEGORY' },

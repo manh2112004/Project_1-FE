@@ -164,8 +164,8 @@ export const ProductsPage: React.FC = () => {
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between ${categoryParam === cat.id
-                      ? 'bg-indigo-600/30 text-indigo-400 border border-indigo-500/40 font-bold'
-                      : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+                    ? 'bg-indigo-600/30 text-indigo-400 border border-indigo-500/40 font-bold'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                     }`}
                 >
                   <span>{cat.name}</span>
@@ -212,28 +212,48 @@ export const ProductsPage: React.FC = () => {
                   return (
                     <div
                       key={product.id}
-                      className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-slate-800/80 group"
+                      className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-slate-800/80 group hover:border-indigo-500/40 transition-all duration-300 shadow-lg hover:shadow-indigo-500/10"
                     >
-                      <div className="relative aspect-square bg-slate-900/60 p-4 flex items-center justify-center">
+                      <div className="relative aspect-square w-full overflow-hidden bg-slate-900/90 p-4 flex items-center justify-center border-b border-slate-800/60">
                         <img
                           src={product.thumbnail || 'https://via.placeholder.com/300?text=No+Image'}
                           alt={product.name}
                           className="w-full h-full object-contain group-hover:scale-105 transition-all duration-300"
                         />
                         {hasDiscount && (
-                          <span className="absolute top-3 left-3 bg-rose-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg">
+                          <span className="absolute top-3 left-3 bg-rose-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg z-10">
                             Giảm giá
                           </span>
                         )}
                       </div>
 
-                      <div className="p-5 flex-1 flex flex-col justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-bold text-white line-clamp-2 group-hover:text-indigo-400 transition-colors">
-                            <Link to={`/products/${product.id}`}>{product.name}</Link>
+                      <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                        <div className="space-y-1">
+                          {product.store && (
+                            <Link
+                              to={`/stores/${product.store.id}`}
+                              className="flex items-center gap-2 pb-1.5 border-b border-slate-800/40 mb-1 hover:text-indigo-400 transition-colors z-10 relative"
+                            >
+                              <img
+                                src={
+                                  product.store.logo ||
+                                  `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(product.store.name)}`
+                                }
+                                alt={product.store.name}
+                                className="w-5 h-5 rounded-full object-cover bg-slate-900 border border-indigo-500/40 p-0.5 shrink-0"
+                              />
+                              <span className="text-[11px] font-bold text-indigo-300 hover:text-indigo-200 truncate">
+                                {product.store.name}
+                              </span>
+                            </Link>
+                          )}
+                          <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-indigo-400 transition-colors min-h-[2.5rem]">
+                            <Link to={`/products/${product.id}`} title={product.name}>
+                              {product.name}
+                            </Link>
                           </h3>
                           {product.sku && (
-                            <p className="text-[10px] text-slate-500 uppercase mt-1">SKU: {product.sku}</p>
+                            <p className="text-[10px] text-slate-500 uppercase font-mono">SKU: {product.sku}</p>
                           )}
                         </div>
 
@@ -257,7 +277,7 @@ export const ProductsPage: React.FC = () => {
 
                           <button
                             onClick={() => handleAddToCart(product)}
-                            className="p-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 transition-all"
+                            className="p-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 transition-all shrink-0"
                             title="Thêm vào giỏ"
                           >
                             <ShoppingBag className="w-4 h-4" />

@@ -22,6 +22,8 @@ import { AdminLoginPage } from './pages/auth/AdminLoginPage';
 import { HomePage } from './pages/client/HomePage';
 import { ProductsPage } from './pages/client/ProductsPage';
 import { ProductDetailPage } from './pages/client/ProductDetailPage';
+import { StoresPage } from './pages/client/StoresPage';
+import { StoreDetailPage } from './pages/client/StoreDetailPage';
 import { CartPage } from './pages/client/CartPage';
 import { CheckoutPage } from './pages/client/CheckoutPage';
 import { OrdersPage } from './pages/client/OrdersPage';
@@ -37,6 +39,10 @@ import { AdminBrandsPage } from './pages/admin/AdminBrandsPage';
 import { AdminInventoryPage } from './pages/admin/AdminInventoryPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminRolesPage } from './pages/admin/AdminRolesPage';
+import { AdminStoresPage } from './pages/admin/AdminStoresPage';
+
+// Seller Pages
+import { SellerStorePage } from './pages/seller/SellerStorePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +69,8 @@ export const App: React.FC = () => {
             <Route index element={<HomePage />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="products/:id" element={<ProductDetailPage />} />
+            <Route path="stores" element={<StoresPage />} />
+            <Route path="stores/:id" element={<StoreDetailPage />} />
             <Route path="cart" element={<CartPage />} />
 
             {/* Authenticated Client Routes */}
@@ -98,18 +106,30 @@ export const App: React.FC = () => {
                 </AuthGuard>
               }
             />
+            <Route
+              path="seller/store"
+              element={
+                <AuthGuard>
+                  <SellerStorePage />
+                </AuthGuard>
+              }
+            />
           </Route>
 
           {/* Admin Portal Protected Routes */}
           <Route
             path="/admin"
             element={
-              <RoleGuard disallowedRoles={['CUSTOMER']}>
+              <RoleGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'STAFF']}>
                 <AdminLayout />
               </RoleGuard>
             }
           >
             <Route index element={<AdminDashboardPage />} />
+            <Route
+              path="stores"
+              element={<AdminStoresPage />}
+            />
             <Route
               path="products"
               element={

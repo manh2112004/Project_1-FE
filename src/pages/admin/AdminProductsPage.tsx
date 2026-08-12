@@ -3,7 +3,7 @@ import api from '../../services/api';
 import type { Product, Category, Brand, PaginationMeta } from '../../types';
 import { Pagination } from '../../components/common/Pagination';
 import { useToastStore } from '../../store/useToastStore';
-import { Plus, Search, Edit2, Trash2, Upload, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Image as ImageIcon, X, Loader2, Store } from 'lucide-react';
 
 export const AdminProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -264,6 +264,7 @@ export const AdminProductsPage: React.FC = () => {
               <thead className="border-b border-slate-800 text-slate-400 uppercase font-semibold bg-slate-900/60">
                 <tr>
                   <th className="py-3.5 px-4">Sản Phẩm</th>
+                  <th className="py-3.5 px-4">Gian Hàng</th>
                   <th className="py-3.5 px-4">SKU</th>
                   <th className="py-3.5 px-4">Giá Bán</th>
                   <th className="py-3.5 px-4">Giá Giảm</th>
@@ -286,6 +287,16 @@ export const AdminProductsPage: React.FC = () => {
                           <p className="text-[10px] text-slate-400">{p.slug}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {p.store ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
+                          <Store className="w-3 h-3" />
+                          {p.store.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 text-[11px] italic">Hệ thống</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-slate-300 font-mono">{p.sku}</td>
                     <td className="py-3 px-4 font-bold text-white">{p.price.toLocaleString('vi-VN')} đ</td>

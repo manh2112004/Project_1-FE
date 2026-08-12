@@ -95,6 +95,7 @@ export interface ProductImage {
 
 export interface Product {
   id: string;
+  storeId?: string | null;
   categoryId: string;
   brandId: string;
   name: string;
@@ -108,6 +109,7 @@ export interface Product {
   status: string;
   category?: Category;
   brand?: Brand;
+  store?: Store;
   images?: ProductImage[];
   inventory?: Inventory;
   stockQuantity?: number;
@@ -197,3 +199,109 @@ export interface Role {
   permissionCodes?: string[];
   permissions?: Permission[];
 }
+
+export type BusinessType = "PERSONAL" | "ENTERPRISE";
+export type StoreStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED";
+
+export interface StoreAddress {
+  id: string;
+  storeId: string;
+  contactName: string;
+  phoneNumber?: string | null;
+  addressLine1: string;
+  addressLine2?: string | null;
+  ward: string;
+  district: string;
+  city: string;
+  country: string;
+  postalCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isDefaultPickup: boolean;
+  isDefaultReturn: boolean;
+  isDefault: boolean;
+  fullAddress: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Store {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string | null;
+  logo?: string | null;
+  coverImage?: string | null;
+  contactPhone?: string;
+  contactEmail: string;
+  businessType: BusinessType;
+  taxCode?: string | null;
+  identityNumber?: string | null;
+  status: StoreStatus;
+  statusNote?: string | null;
+  isOnVacation: boolean;
+  canAcceptOrders: boolean;
+  addresses?: StoreAddress[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegisterStorePayload {
+  name: string;
+  description?: string;
+  logo?: string;
+  coverImage?: string;
+  contactPhone?: string;
+  contactEmail: string;
+  businessType: BusinessType;
+  taxCode?: string;
+  identityNumber?: string;
+}
+
+export interface UpdateStoreProfilePayload {
+  name: string;
+  description?: string;
+  logo?: string;
+  coverImage?: string;
+}
+
+export interface UpdateStoreLegalInfoPayload {
+  taxCode?: string;
+  identityNumber?: string;
+}
+
+export interface CreateStoreAddressPayload {
+  storeId: string;
+  contactName: string;
+  phoneNumber?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  ward: string;
+  district: string;
+  city: string;
+  country?: string;
+  postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  isDefaultPickup?: boolean;
+  isDefaultReturn?: boolean;
+  isDefault?: boolean;
+}
+
+export interface UpdateStoreAddressPayload {
+  contactName?: string;
+  phoneNumber?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  ward?: string;
+  district?: string;
+  city?: string;
+  country?: string;
+  postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  isDefaultPickup?: boolean;
+  isDefaultReturn?: boolean;
+  isDefault?: boolean;
+}
+

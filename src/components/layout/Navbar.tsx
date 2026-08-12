@@ -18,6 +18,7 @@ import {
   Loader2,
   TrendingUp,
   ArrowRight,
+  Store,
 } from 'lucide-react';
 
 const POPULAR_SEARCHES = [
@@ -126,7 +127,10 @@ export const Navbar: React.FC = () => {
     navigate('/login');
   };
 
-  const isAdmin = isAuthenticated && user?.roleCode !== 'CUSTOMER';
+  const isAdmin =
+    isAuthenticated &&
+    (user?.email === 'admin@system.com' ||
+      ['SUPER_ADMIN', 'ADMIN', 'STAFF'].includes(user?.roleCode || ''));
   const totalCartCount = cart?.totalItems || 0;
 
   return (
@@ -264,10 +268,30 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center gap-5">
             <Link
               to="/products"
-              className={`text-sm font-medium transition-colors ${location.pathname === '/products' ? 'text-indigo-400' : 'text-slate-300 hover:text-white'
+              className={`text-sm font-medium transition-colors ${location.pathname === '/products' ? 'text-indigo-400 font-bold' : 'text-slate-300 hover:text-white'
                 }`}
             >
               Sản phẩm
+            </Link>
+
+            <Link
+              to="/stores"
+              className={`text-sm font-medium transition-colors flex items-center gap-1.5 ${location.pathname.startsWith('/stores') ? 'text-indigo-400 font-bold' : 'text-slate-300 hover:text-white'
+                }`}
+            >
+              <Store className="w-4 h-4 text-indigo-400" />
+              <span>Gian Hàng</span>
+            </Link>
+
+            <Link
+              to="/seller/store"
+              className={`text-sm font-medium transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${
+                location.pathname === '/seller/store'
+                  ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
+                  : 'border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10'
+              }`}
+            >
+              <span>Kênh Người Bán</span>
             </Link>
 
             {/* Cart Icon */}
@@ -322,6 +346,15 @@ export const Navbar: React.FC = () => {
                         Trang Quản Trị (Admin)
                       </Link>
                     )}
+
+                    <Link
+                      to="/seller/store"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-indigo-400 hover:bg-indigo-500/10 transition-colors font-medium"
+                    >
+                      <Store className="w-4 h-4" />
+                      Kênh Người Bán (Store)
+                    </Link>
 
                     <Link
                       to="/profile"
@@ -422,6 +455,22 @@ export const Navbar: React.FC = () => {
               className="px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800"
             >
               Tất cả Sản phẩm
+            </Link>
+
+            <Link
+              to="/stores"
+              onClick={() => setIsMenuOpen(false)}
+              className="px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center gap-2"
+            >
+              <Store className="w-4 h-4 text-indigo-400" /> Danh sách Gian Hàng
+            </Link>
+
+            <Link
+              to="/seller/store"
+              onClick={() => setIsMenuOpen(false)}
+              className="px-3 py-2 rounded-lg text-indigo-400 hover:bg-slate-800 font-medium flex items-center gap-2"
+            >
+              <Store className="w-4 h-4" /> Kênh Người Bán (Store)
             </Link>
 
             {isAuthenticated ? (
