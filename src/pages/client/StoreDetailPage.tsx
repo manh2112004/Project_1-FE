@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Loader2,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const StoreDetailPage: React.FC = () => {
@@ -119,6 +120,11 @@ export const StoreDetailPage: React.FC = () => {
                 <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
                   <ShieldCheck className="w-3.5 h-3.5" /> Gian Hàng Chính Hãng
                 </span>
+                {store.isOnVacation && (
+                  <span className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Đang Tạm Nghỉ Bán
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
                 <span className="flex items-center gap-1.5">
@@ -136,6 +142,15 @@ export const StoreDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {store.isOnVacation && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <strong className="font-bold">Gian hàng đang trong thời gian tạm nghỉ bán:</strong> Chủ shop đã bật chế độ nghỉ ngơi. Các sản phẩm của gian hàng hiện tạm thời ngưng nhận đơn đặt hàng mới.
+            </div>
+          </div>
+        )}
 
         {/* Description Banner */}
         {store.description && (
@@ -183,6 +198,15 @@ export const StoreDetailPage: React.FC = () => {
                         Giảm giá
                       </span>
                     )}
+                    {store.isOnVacation ? (
+                      <span className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg z-10">
+                        Shop tạm nghỉ
+                      </span>
+                    ) : product.status === 'INACTIVE' ? (
+                      <span className="absolute top-3 right-3 bg-rose-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-lg z-10">
+                        Tạm ngưng
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="p-4 flex-1 flex flex-col justify-between gap-3">
@@ -216,9 +240,10 @@ export const StoreDetailPage: React.FC = () => {
                       </div>
 
                       <button
+                        disabled={store.isOnVacation || product.status === 'INACTIVE'}
                         onClick={() => handleAddToCart(product)}
-                        className="p-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 transition-all shrink-0"
-                        title="Thêm vào giỏ"
+                        className="p-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 transition-all shrink-0 disabled:opacity-40 disabled:hover:bg-indigo-600/20 disabled:hover:text-indigo-400"
+                        title={store.isOnVacation ? 'Shop đang tạm nghỉ bán' : 'Thêm vào giỏ'}
                       >
                         <ShoppingBag className="w-4 h-4" />
                       </button>

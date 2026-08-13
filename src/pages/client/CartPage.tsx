@@ -48,19 +48,37 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     }
   };
 
+  const isVacation = Boolean(item.product?.store?.isOnVacation);
+  const isInactive = item.product?.status === 'INACTIVE';
+  const isDisabled = isVacation || isInactive;
+
   return (
     <div
-      className={`glass-panel p-5 rounded-2xl border transition-all flex items-center gap-4 group ${isSelected ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-slate-800'
-        }`}
+      className={`glass-panel p-5 rounded-2xl border transition-all flex items-center gap-4 group ${
+        isDisabled
+          ? 'border-slate-800 bg-slate-900/30 opacity-75'
+          : isSelected
+          ? 'border-indigo-500/50 bg-indigo-500/5'
+          : 'border-slate-800'
+      }`}
     >
       {/* Checkbox */}
       <button
         type="button"
-        onClick={() => onToggleSelect(item.productId)}
-        className="text-slate-400 hover:text-indigo-400 shrink-0 transition-colors p-1"
-        title={isSelected ? 'Bỏ chọn sản phẩm này' : 'Chọn sản phẩm này để thanh toán'}
+        disabled={isDisabled}
+        onClick={() => !isDisabled && onToggleSelect(item.productId)}
+        className="text-slate-400 hover:text-indigo-400 shrink-0 transition-colors p-1 disabled:opacity-30 disabled:cursor-not-allowed"
+        title={
+          isVacation
+            ? 'Shop đang trong thời gian tạm nghỉ bán'
+            : isInactive
+            ? 'Sản phẩm tạm ngưng kinh doanh'
+            : isSelected
+            ? 'Bỏ chọn sản phẩm này'
+            : 'Chọn sản phẩm này để thanh toán'
+        }
       >
-        {isSelected ? (
+        {isSelected && !isDisabled ? (
           <CheckSquare className="w-5 h-5 text-indigo-500" />
         ) : (
           <Square className="w-5 h-5 text-slate-600" />
@@ -81,9 +99,21 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
         <h4 className="text-sm font-bold text-white truncate">
           {item.product?.name || `Sản phẩm ID: ${item.productId}`}
         </h4>
-        <p className="text-xs font-semibold text-emerald-400">
-          {itemPrice.toLocaleString('vi-VN')} đ
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs font-semibold text-emerald-400">
+            {itemPrice.toLocaleString('vi-VN')} đ
+          </p>
+          {isVacation && (
+            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+              Shop tạm nghỉ
+            </span>
+          )}
+          {isInactive && !isVacation && (
+            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-full">
+              Tạm ngưng bán
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Controls */}

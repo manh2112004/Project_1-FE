@@ -5,7 +5,7 @@ import type { Product, ProductImage } from '../../types';
 import { useCartStore } from '../../store/useCartStore';
 import { useToastStore } from '../../store/useToastStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ShoppingBag, ArrowLeft, ShieldCheck, Truck, Plus, Minus, Loader2, Store } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, ShieldCheck, Truck, Plus, Minus, Loader2, Store, AlertTriangle } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +34,19 @@ export const ProductDetailPage: React.FC = () => {
 
         if (prodRes.data?.success) {
           const prod: Product = prodRes.data.data;
+
+          if (prod.storeId || prod.store?.id) {
+            try {
+              const targetStoreId = prod.storeId || prod.store?.id;
+              const storeRes = await api.get(`/stores/${targetStoreId}`);
+              if (storeRes.data?.success) {
+                prod.store = storeRes.data.data;
+              }
+            } catch (err) {
+              console.error('Lỗi lấy thông tin cửa hàng:', err);
+            }
+          }
+
           setProduct(prod);
 
           // Lọc danh sách hình ảnh theo productId
@@ -214,14 +227,43 @@ export const ProductDetailPage: React.FC = () => {
           {(() => {
             const stock = product.stockQuantity ?? product.inventory?.quantity ?? 0;
             const isOutOfStock = stock <= 0;
-            const maxLimit = isOutOfStock ? 1 : Math.min(99, stock);
+            const isStoreVacation = Boolean(product.store?.isOnVacation);
+            const isProductInactive = product.status === 'INACTIVE';
+            const isCanBuy = !isOutOfStock && !isStoreVacation && !isProductInactive;
+            const maxLimit = !isCanBuy ? 1 : Math.min(99, stock);
 
             return (
               <>
+                {isStoreVacation && (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                    <div>
+                      <strong className="font-bold">Gian hàng đang tạm nghỉ bán:</strong> Chủ shop đang bật chế độ tạm nghỉ. Sản phẩm hiện tạm thời ngưng nhận đơn đặt hàng.
+                    </div>
+                  </div>
+                )}
+
+                {isProductInactive && !isStoreVacation && (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                    <div>
+                      <strong className="font-bold">Tạm ngưng kinh doanh:</strong> Sản phẩm này hiện tạm thời không khả dụng để đặt mua.
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-slate-300">Số lượng mua</label>
-                    {isOutOfStock ? (
+                    {isStoreVacation ? (
+                      <span className="text-xs font-bold bg-amber-500/20 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full">
+                        Shop tạm nghỉ
+                      </span>
+                    ) : isProductInactive ? (
+                      <span className="text-xs font-bold bg-rose-500/20 border border-rose-500/30 text-rose-400 px-3 py-1 rounded-full">
+                        Tạm ngưng bán
+                      </span>
+                    ) : isOutOfStock ? (
                       <span className="text-xs font-bold bg-rose-500/20 border border-rose-500/30 text-rose-400 px-3 py-1 rounded-full">
                         Hết hàng trong kho
                       </span>
@@ -236,7 +278,7 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
                       <button
                         type="button"
-                        disabled={isOutOfStock || quantity <= 1}
+                        disabled={!isCanBuy || quantity <= 1}
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                         className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
                       >
@@ -245,10 +287,10 @@ export const ProductDetailPage: React.FC = () => {
 
                       <input
                         type="number"
-                        disabled={isOutOfStock}
+                        disabled={!isCanBuy}
                         min={1}
                         max={maxLimit}
-                        value={isOutOfStock ? 0 : quantity}
+                        value={!isCanBuy ? 0 : quantity}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
                           if (isNaN(val)) setQuantity(1);
@@ -263,7 +305,7 @@ export const ProductDetailPage: React.FC = () => {
 
                       <button
                         type="button"
-                        disabled={isOutOfStock || quantity >= maxLimit}
+                        disabled={!isCanBuy || quantity >= maxLimit}
                         onClick={() => setQuantity((q) => Math.min(maxLimit, q + 1))}
                         className="p-2.5 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
                       >
@@ -276,15 +318,23 @@ export const ProductDetailPage: React.FC = () => {
                 {/* Action CTAs */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-2">
                   <button
-                    disabled={isOutOfStock}
+                    disabled={!isCanBuy}
                     onClick={handleAddToCart}
                     className="flex-1 py-3.5 rounded-xl bg-slate-900 border border-indigo-500/40 hover:bg-indigo-600/20 text-indigo-400 hover:text-white disabled:opacity-40 disabled:hover:bg-slate-900 disabled:hover:text-indigo-400 font-bold text-sm flex items-center justify-center gap-2 transition-all"
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    <span>{isOutOfStock ? 'Sản Phẩm Tạm Hết Hàng' : 'Thêm Vào Giỏ Hàng'}</span>
+                    <span>
+                      {isStoreVacation
+                        ? 'Shop Đang Tạm Nghỉ Bán'
+                        : isProductInactive
+                        ? 'Sản Phẩm Tạm Ngưng Bán'
+                        : isOutOfStock
+                        ? 'Sản Phẩm Tạm Hết Hàng'
+                        : 'Thêm Vào Giỏ Hàng'}
+                    </span>
                   </button>
                   <button
-                    disabled={isOutOfStock}
+                    disabled={!isCanBuy}
                     onClick={handleBuyNow}
                     className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white disabled:opacity-40 disabled:hover:from-indigo-600 disabled:hover:to-violet-600 font-bold text-sm shadow-xl shadow-indigo-500/30 transition-all hover:scale-105"
                   >

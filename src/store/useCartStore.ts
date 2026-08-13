@@ -29,7 +29,16 @@ export const useCartStore = create<CartState>((set, get) => ({
               try {
                 const prodRes = await api.get(`/products/${item.productId}`);
                 if (prodRes.data?.success) {
-                  return { ...item, product: prodRes.data.data };
+                  const prod = prodRes.data.data;
+                  if (prod.storeId || prod.store?.id) {
+                    try {
+                      const sRes = await api.get(`/stores/${prod.storeId || prod.store?.id}`);
+                      if (sRes.data?.success) {
+                        prod.store = sRes.data.data;
+                      }
+                    } catch (e) { }
+                  }
+                  return { ...item, product: prod };
                 }
               } catch (err) {
                 // Ignore product fetch error

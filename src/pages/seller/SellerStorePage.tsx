@@ -84,6 +84,7 @@ export const SellerStorePage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [uploadingProductThumb, setUploadingProductThumb] = useState(false);
+  const [togglingProductId, setTogglingProductId] = useState<string | null>(null);
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -499,6 +500,34 @@ export const SellerStorePage: React.FC = () => {
     }
   };
 
+  // --- XỬ LÝ ĐỔI TRẠNG THÁI SẢN PHẨM ---
+  const handleToggleProductStatus = async (product: Product) => {
+    const currentStatus = product.status || 'ACTIVE';
+    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setTogglingProductId(product.id);
+    try {
+      const res = await api.put(`/products/${product.id}`, { status: newStatus });
+      if (res.data?.success || res.status === 200) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p))
+        );
+        addToast({
+          type: 'success',
+          title: 'Đã cập nhật trạng thái',
+          message: `Sản phẩm "${product.name}" hiện đã chuyển sang [${newStatus === 'ACTIVE' ? 'Đang bán' : 'Tạm ngưng bán'}].`,
+        });
+      }
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Cập nhật thất bại',
+        message: err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái sản phẩm.',
+      });
+    } finally {
+      setTogglingProductId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-slate-400">
@@ -543,8 +572,8 @@ export const SellerStorePage: React.FC = () => {
                     type="button"
                     onClick={() => setRegForm({ ...regForm, businessType: 'PERSONAL' })}
                     className={`p-4 rounded-2xl border flex items-center gap-3 transition-all text-left ${regForm.businessType === 'PERSONAL'
-                        ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/10'
-                        : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/10'
+                      : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
                       }`}
                   >
                     <UserCheck className="w-6 h-6 text-indigo-400 shrink-0" />
@@ -558,8 +587,8 @@ export const SellerStorePage: React.FC = () => {
                     type="button"
                     onClick={() => setRegForm({ ...regForm, businessType: 'ENTERPRISE' })}
                     className={`p-4 rounded-2xl border flex items-center gap-3 transition-all text-left ${regForm.businessType === 'ENTERPRISE'
-                        ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/10'
-                        : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg shadow-indigo-500/10'
+                      : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'
                       }`}
                   >
                     <Building className="w-6 h-6 text-purple-400 shrink-0" />
@@ -825,8 +854,8 @@ export const SellerStorePage: React.FC = () => {
           type="button"
           onClick={() => setActiveTab('profile')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 flex items-center gap-2 transition-all ${activeTab === 'profile'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-white'
+            ? 'border-indigo-500 text-indigo-400'
+            : 'border-transparent text-slate-400 hover:text-white'
             }`}
         >
           <StoreIcon className="w-4 h-4" /> Hồ sơ cửa hàng
@@ -836,8 +865,8 @@ export const SellerStorePage: React.FC = () => {
           type="button"
           onClick={() => setActiveTab('products')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 flex items-center gap-2 transition-all ${activeTab === 'products'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-white'
+            ? 'border-indigo-500 text-indigo-400'
+            : 'border-transparent text-slate-400 hover:text-white'
             }`}
         >
           <Package className="w-4 h-4" /> Quản lý Sản phẩm ({products.length})
@@ -847,8 +876,8 @@ export const SellerStorePage: React.FC = () => {
           type="button"
           onClick={() => setActiveTab('legal')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 flex items-center gap-2 transition-all ${activeTab === 'legal'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-white'
+            ? 'border-indigo-500 text-indigo-400'
+            : 'border-transparent text-slate-400 hover:text-white'
             }`}
         >
           <ShieldCheck className="w-4 h-4" /> Giấy tờ pháp lý
@@ -858,8 +887,8 @@ export const SellerStorePage: React.FC = () => {
           type="button"
           onClick={() => setActiveTab('addresses')}
           className={`py-3.5 px-5 font-bold text-xs border-b-2 flex items-center gap-2 transition-all ${activeTab === 'addresses'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-400 hover:text-white'
+            ? 'border-indigo-500 text-indigo-400'
+            : 'border-transparent text-slate-400 hover:text-white'
             }`}
         >
           <MapPin className="w-4 h-4" /> Địa chỉ & Kho hàng ({addresses.length})
@@ -1032,9 +1061,25 @@ export const SellerStorePage: React.FC = () => {
                         {p.discountPrice ? `${p.discountPrice.toLocaleString('vi-VN')} đ` : '-'}
                       </td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle className="w-3 h-3" /> Đang bán
-                        </span>
+                        <button
+                          type="button"
+                          disabled={togglingProductId === p.id}
+                          onClick={() => handleToggleProductStatus(p)}
+                          title="Bấm để bật/tắt trạng thái bán hàng"
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all border shadow-sm ${p.status === 'ACTIVE' || !p.status
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20 hover:border-rose-500/50'
+                            }`}
+                        >
+                          {togglingProductId === p.id ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : p.status === 'ACTIVE' || !p.status ? (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Ban className="w-3.5 h-3.5 text-rose-400" />
+                          )}
+                          <span>{p.status === 'ACTIVE' || !p.status ? 'Đang bán' : 'Tạm ngưng'}</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
