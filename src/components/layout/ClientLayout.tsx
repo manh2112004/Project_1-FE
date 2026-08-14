@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
+import { ChatBox } from '../chat/ChatBox';
 import { useSseNotification } from '../../hooks/useSseNotification';
 
 export const ClientLayout: React.FC = () => {
@@ -15,6 +16,8 @@ export const ClientLayout: React.FC = () => {
         <Outlet />
       </main>
       <Footer />
+      <ChatBox />
     </div>
   );
 };
+

@@ -5,7 +5,8 @@ import type { Product, ProductImage } from '../../types';
 import { useCartStore } from '../../store/useCartStore';
 import { useToastStore } from '../../store/useToastStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ShoppingBag, ArrowLeft, ShieldCheck, Truck, Plus, Minus, Loader2, Store, AlertTriangle } from 'lucide-react';
+import { useChatStore } from '../../store/useChatStore';
+import { ShoppingBag, ArrowLeft, ShieldCheck, Truck, Plus, Minus, Loader2, Store, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,7 @@ export const ProductDetailPage: React.FC = () => {
   const { addToCart } = useCartStore();
   const { addToast } = useToastStore();
   const { isAuthenticated } = useAuthStore();
+  const { openChatWithStore } = useChatStore();
 
   useEffect(() => {
     if (!id) return;
@@ -172,11 +174,8 @@ export const ProductDetailPage: React.FC = () => {
 
           {/* Shop Info Card */}
           {product.store && (
-            <Link
-              to={`/stores/${product.store.id}`}
-              className="glass-panel p-4 rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/50 via-slate-900/90 to-slate-900 flex items-center justify-between gap-4 shadow-lg hover:border-indigo-500/60 transition-all group"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
+            <div className="glass-panel p-4 rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/50 via-slate-900/90 to-slate-900 flex items-center justify-between gap-4 shadow-lg hover:border-indigo-500/60 transition-all group">
+              <Link to={`/stores/${product.store.id}`} className="flex items-center gap-3.5 min-w-0 flex-1">
                 <img
                   src={
                     product.store.logo ||
@@ -198,8 +197,24 @@ export const ProductDetailPage: React.FC = () => {
                     Email: {product.store.contactEmail} {product.store.contactPhone ? `• Hotline: ${product.store.contactPhone}` : ''}
                   </p>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    addToast({ title: 'Vui lòng đăng nhập để chat với Shop!', type: 'warning' });
+                    navigate('/login');
+                    return;
+                  }
+                  openChatWithStore(product.store!.id, product);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md transition-all hover:scale-105"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Chat Ngay</span>
+              </button>
+            </div>
           )}
 
           {/* Price Tag */}
@@ -327,10 +342,10 @@ export const ProductDetailPage: React.FC = () => {
                       {isStoreVacation
                         ? 'Shop Đang Tạm Nghỉ Bán'
                         : isProductInactive
-                        ? 'Sản Phẩm Tạm Ngưng Bán'
-                        : isOutOfStock
-                        ? 'Sản Phẩm Tạm Hết Hàng'
-                        : 'Thêm Vào Giỏ Hàng'}
+                          ? 'Sản Phẩm Tạm Ngưng Bán'
+                          : isOutOfStock
+                            ? 'Sản Phẩm Tạm Hết Hàng'
+                            : 'Thêm Vào Giỏ Hàng'}
                     </span>
                   </button>
                   <button

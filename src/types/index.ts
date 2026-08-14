@@ -305,3 +305,50 @@ export interface UpdateStoreAddressPayload {
   isDefault?: boolean;
 }
 
+export type MessageType = "TEXT" | "IMAGE" | "PRODUCT_CARD" | "ORDER_CARD" | "SYSTEM";
+export type SenderType = "CUSTOMER" | "STORE" | "SYSTEM";
+
+export interface MessageAttachment {
+  type: "IMAGE" | "FILE";
+  url: string;
+  name?: string;
+  size?: number;
+}
+
+export interface Conversation {
+  id: string;
+  customerId: string;
+  storeId: string;
+  lastMessageContent: string | null;
+  lastMessageAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  store?: {
+    id: string;
+    name: string;
+    logo?: string | null;
+  } | null;
+  customer?: {
+    id: string;
+    fullName: string;
+    avatarUrl?: string | null;
+  } | null;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderType: SenderType;
+  type: MessageType;
+  content: string;
+  attachments?: MessageAttachment[];
+  metadata?: Record<string, any> | null;
+  isRead: boolean;
+  readAt: string | null;
+  isRecalled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+

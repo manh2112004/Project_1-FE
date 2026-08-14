@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
+import { useChatStore } from '../../store/useChatStore';
 import api from '../../services/api';
 import type { Product } from '../../types';
 import {
@@ -19,6 +20,7 @@ import {
   TrendingUp,
   ArrowRight,
   Store,
+  MessageSquare,
 } from 'lucide-react';
 
 const POPULAR_SEARCHES = [
@@ -33,6 +35,7 @@ const POPULAR_SEARCHES = [
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { cart, fetchCart } = useCartStore();
+  const { toggleChat } = useChatStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -293,6 +296,18 @@ export const Navbar: React.FC = () => {
             >
               <span>Kênh Người Bán</span>
             </Link>
+
+            {/* Chat Icon Button */}
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => toggleChat()}
+                className="relative p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:bg-slate-800/80 text-slate-200 hover:text-white transition-all"
+                title="Trò chuyện"
+              >
+                <MessageSquare className="w-5 h-5 text-indigo-400" />
+              </button>
+            )}
 
             {/* Cart Icon */}
             <Link
