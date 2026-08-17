@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import type { MessageType } from '../../types';
 
 export const ChatBox: React.FC = () => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, accessToken, isAuthenticated } = useAuthStore();
   const {
     isOpen,
     toggleChat,
@@ -15,6 +15,11 @@ export const ChatBox: React.FC = () => {
     isLoadingMessages,
     isSending,
     pendingProductCard,
+    socketConnected,
+    isTyping,
+    initializeSocket,
+    disconnectSocket,
+    sendTypingStatus,
     selectConversation,
     sendMessage,
     recallMessage,
@@ -24,24 +29,50 @@ export const ChatBox: React.FC = () => {
 
   const [inputContent, setInputContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cuộn xuống tin nhắn cuối cùng khi danh sách tin nhắn thay đổi
+  // 1. Khởi tạo kết nối Socket.IO khi User đã đăng nhập
+  useEffect(() => {
+    if (isAuthenticated && accessToken) {
+      initializeSocket(accessToken);
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [isAuthenticated, accessToken, initializeSocket, disconnectSocket]);
+
+  // 2. Cuộn xuống tin nhắn cuối cùng khi có tin nhắn mới hoặc đổi phòng
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeConversation]);
+  }, [messages, activeConversation, isTyping]);
 
-  // Load danh sách conversation khi mở ChatBox
+  // 3. Load danh sách conversation khi mở ChatBox
   useEffect(() => {
     if (isOpen && isAuthenticated) {
       fetchMyConversations();
     }
-  }, [isOpen, isAuthenticated]);
+  }, [isOpen, isAuthenticated, fetchMyConversations]);
 
   if (!isAuthenticated) return null;
+
+  // Xử lý sự kiện gõ phím (Realtime typing status)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputContent(e.target.value);
+    if (activeConversation) {
+      sendTypingStatus(true);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        sendTypingStatus(false);
+      }, 2500);
+    }
+  };
 
   const handleSendText = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputContent.trim() || isSending) return;
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTypingStatus(false);
 
     const content = inputContent;
     setInputContent('');
@@ -76,8 +107,8 @@ export const ChatBox: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
+            <span className={`relative inline-flex rounded-full h-4 w-4 ${socketConnected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
           </span>
         </button>
       )}
@@ -90,7 +121,7 @@ export const ChatBox: React.FC = () => {
             <div className="flex items-center gap-3">
               {activeConversation && (
                 <button
-                  onClick={() => selectConversation(null as any)}
+                  onClick={() => selectConversation(null)}
                   className="p-1 hover:bg-white/10 rounded-full transition-colors"
                   title="Trở về danh sách"
                 >
@@ -104,14 +135,22 @@ export const ChatBox: React.FC = () => {
                   💬
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm leading-tight truncate max-w-[180px]">
-                    {activeConversation
-                      ? (user?.id === activeConversation.customerId
-                        ? (activeConversation.store?.name || 'Trò chuyện với Shop')
-                        : (activeConversation.customer?.fullName || 'Trò chuyện với Khách'))
-                      : 'Danh sách trò chuyện'}
-                  </h3>
-                  <p className="text-xs text-blue-100 font-light">Online Hỗ trợ</p>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-semibold text-sm leading-tight truncate max-w-[170px]">
+                      {activeConversation
+                        ? (user?.id === activeConversation.customerId
+                          ? (activeConversation.store?.name || 'Trò chuyện với Shop')
+                          : (activeConversation.customer?.fullName || 'Trò chuyện với Khách'))
+                        : 'Danh sách trò chuyện'}
+                    </h3>
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}
+                      title={socketConnected ? 'Realtime Socket: Đã kết nối' : 'Đang kết nối Socket...'}
+                    />
+                  </div>
+                  <p className="text-xs text-blue-100 font-light">
+                    {socketConnected ? 'Online Hỗ trợ (Realtime)' : 'Đang kết nối...'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -229,7 +268,7 @@ export const ChatBox: React.FC = () => {
                               : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-100 dark:border-gray-700 rounded-bl-none'
                             } ${msg.isRecalled ? 'italic opacity-70' : ''}`}
                         >
-                          {/* Nối hiển thị loại tin nhắn Thẻ sản phẩm */}
+                          {/* Loại tin nhắn Thẻ sản phẩm */}
                           {msg.type === 'PRODUCT_CARD' && msg.metadata && (
                             <div className="mb-2 p-2 bg-black/10 dark:bg-white/10 rounded-lg flex gap-2 items-center">
                               {msg.metadata.thumbnail && (
@@ -270,6 +309,19 @@ export const ChatBox: React.FC = () => {
                     );
                   })
                 )}
+
+                {/* Trạng thái đối phương đang nhập tin nhắn (Typing Indicator) */}
+                {isTyping && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 italic py-1 px-2">
+                    <span className="flex gap-1 items-center">
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </span>
+                    <span>Đối phương đang gõ...</span>
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
@@ -278,7 +330,7 @@ export const ChatBox: React.FC = () => {
                 <input
                   type="text"
                   value={inputContent}
-                  onChange={(e) => setInputContent(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="Nhập tin nhắn..."
                   className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm px-3.5 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />

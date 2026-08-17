@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { chatService } from '../services/chatService';
+import { socketService } from '../services/socketService';
 import { useToastStore } from './useToastStore';
 import type { Conversation, Message, MessageType, Product } from '../types';
 
@@ -12,17 +13,25 @@ interface ChatStore {
   isLoadingMessages: boolean;
   isSending: boolean;
   pendingProductCard: Product | null;
+  socketConnected: boolean;
+  isTyping: boolean;
+  typingUserId: string | null;
 
   // Actions
   toggleChat: (open?: boolean) => void;
+  initializeSocket: (token: string) => void;
+  disconnectSocket: () => void;
   openChatWithStore: (storeId: string, initialProduct?: Product) => Promise<void>;
   fetchMyConversations: (storeId?: string) => Promise<void>;
-  selectConversation: (conversation: Conversation) => Promise<void>;
+  selectConversation: (conversation: Conversation | null) => Promise<void>;
   fetchMessages: (conversationId: string) => Promise<void>;
   sendMessage: (content: string, type?: MessageType, metadata?: any) => Promise<boolean>;
   recallMessage: (messageId: string) => Promise<boolean>;
+  sendTypingStatus: (isTyping: boolean) => void;
   setPendingProductCard: (product: Product | null) => void;
 }
+
+let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   isOpen: false,
@@ -33,6 +42,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isLoadingMessages: false,
   isSending: false,
   pendingProductCard: null,
+  socketConnected: false,
+  isTyping: false,
+  typingUserId: null,
 
   toggleChat: (open) => {
     set((state) => ({ isOpen: open !== undefined ? open : !state.isOpen }));
@@ -40,6 +52,110 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   setPendingProductCard: (product) => {
     set({ pendingProductCard: product });
+  },
+
+  // Khởi tạo kết nối Socket.IO & Đăng ký sự kiện Realtime
+  initializeSocket: (token: string) => {
+    if (!token) return;
+
+    const socket = socketService.connect(token);
+
+    // Cập nhật ngay lập tức nếu socket đã ở trạng thái connected từ trước
+    if (socket.connected) {
+      set({ socketConnected: true });
+      const currentActive = get().activeConversation;
+      if (currentActive) {
+        socketService.joinRoom(currentActive.id);
+      }
+    }
+
+    socket.off('connect');
+    socket.on('connect', () => {
+      console.log('⚡ Socket connected status updated in Zustand store');
+      set({ socketConnected: true });
+      const currentActive = get().activeConversation;
+      if (currentActive) {
+        socketService.joinRoom(currentActive.id);
+      }
+    });
+
+    socket.off('connect_error');
+    socket.on('connect_error', (err) => {
+      console.warn('⚠️ Socket connection error:', err.message);
+      set({ socketConnected: false });
+    });
+
+    socket.off('disconnect');
+    socket.on('disconnect', () => {
+      set({ socketConnected: false });
+    });
+
+    // Lắng nghe tin nhắn mới từ WebSocket Server (sự kiện BE 'chat:new_message')
+    socketService.onNewMessage((newMsg: Message) => {
+      const { activeConversation, isOpen, messages, conversations } = get();
+
+      // 1. Cập nhật tin nhắn trong khung chat active
+      if (activeConversation && newMsg.conversationId === activeConversation.id) {
+        const exists = messages.some((m) => m.id === newMsg.id);
+        if (!exists) {
+          set({
+            messages: [...messages, newMsg],
+            isTyping: false,
+          });
+        }
+      } else {
+        // Thông báo nếu nhận được tin nhắn phòng khác hoặc đang đóng ChatBox
+        if (!isOpen || activeConversation?.id !== newMsg.conversationId) {
+          useToastStore.getState().addToast({
+            title: 'Tin nhắn mới',
+            message: newMsg.content || 'Bạn nhận được tin nhắn mới',
+            type: 'info',
+          });
+        }
+      }
+
+      // 2. Cập nhật lại danh sách cuộc trò chuyện (lastMessageContent, lastMessageAt)
+      const targetConvIndex = conversations.findIndex((c) => c.id === newMsg.conversationId);
+      if (targetConvIndex !== -1) {
+        const updatedConversations = [...conversations];
+        updatedConversations[targetConvIndex] = {
+          ...updatedConversations[targetConvIndex],
+          lastMessageContent: newMsg.content,
+          lastMessageAt: newMsg.createdAt,
+        };
+        // Đưa cuộc trò chuyện lên đầu danh sách
+        const [moved] = updatedConversations.splice(targetConvIndex, 1);
+        updatedConversations.unshift(moved);
+        set({ conversations: updatedConversations });
+      } else {
+        // Nếu cuộc trò chuyện mới chưa có trong danh sách -> fetch lại
+        get().fetchMyConversations();
+      }
+    });
+
+    // Lắng nghe tín hiệu gõ phím của đối phương (sự kiện BE 'chat:user_typing')
+    socketService.onUserTyping(({ userId, isTyping }) => {
+      const { activeConversation } = get();
+      if (!activeConversation) return;
+
+      if (isTyping) {
+        set({ isTyping: true, typingUserId: userId });
+        if (typingTimeout) clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          set({ isTyping: false, typingUserId: null });
+        }, 4000);
+      } else {
+        if (typingTimeout) clearTimeout(typingTimeout);
+        set({ isTyping: false, typingUserId: null });
+      }
+    });
+  },
+
+  // Ngắt kết nối socket
+  disconnectSocket: () => {
+    socketService.offChatEvents();
+    socketService.disconnect();
+    set({ socketConnected: false, isTyping: false, typingUserId: null });
   },
 
   openChatWithStore: async (storeId: string, initialProduct?: Product) => {
@@ -52,8 +168,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const res = await chatService.createOrGetConversation(storeId);
       if (res.success && res.data) {
         const conversation = res.data;
-        set({ activeConversation: conversation });
-        await get().fetchMessages(conversation.id);
+        await get().selectConversation(conversation);
         await get().fetchMyConversations();
       }
     } catch (err: any) {
@@ -82,9 +197,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  selectConversation: async (conversation: Conversation) => {
-    set({ activeConversation: conversation });
-    await get().fetchMessages(conversation.id);
+  selectConversation: async (conversation: Conversation | null) => {
+    const currentActive = get().activeConversation;
+    // Rời room cũ nếu có
+    if (currentActive) {
+      socketService.leaveRoom(currentActive.id);
+    }
+
+    set({ activeConversation: conversation, isTyping: false, typingUserId: null });
+
+    if (conversation) {
+      // Tham gia room Socket mới ở BE ('chat:join_room')
+      socketService.joinRoom(conversation.id);
+      await get().fetchMessages(conversation.id);
+    }
   },
 
   fetchMessages: async (conversationId: string) => {
@@ -107,6 +233,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       set({ isSending: true });
+
+      // Tắt trạng thái gõ phím ngay khi gửi
+      socketService.sendTyping(activeConversation.id, false);
+
       const res = await chatService.sendMessage({
         conversationId: activeConversation.id,
         content: content.trim(),
@@ -116,11 +246,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       if (res.success && res.data) {
         const newMsg = res.data;
-        set((state) => ({
-          messages: [...state.messages, newMsg],
-          pendingProductCard: null,
-        }));
-        // Cập nhật lại danh sách cuộc trò chuyện để có lastMessageContent
+        const currentMessages = get().messages;
+        const exists = currentMessages.some((m) => m.id === newMsg.id);
+
+        if (!exists) {
+          set({
+            messages: [...currentMessages, newMsg],
+            pendingProductCard: null,
+          });
+        }
+
+        // Cập nhật lại cuộc trò chuyện
         get().fetchMyConversations();
         return true;
       }
@@ -130,6 +266,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return false;
     } finally {
       set({ isSending: false });
+    }
+  },
+
+  sendTypingStatus: (isTyping: boolean) => {
+    const { activeConversation } = get();
+    if (activeConversation) {
+      socketService.sendTyping(activeConversation.id, isTyping);
     }
   },
 
