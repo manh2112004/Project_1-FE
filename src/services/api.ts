@@ -1,13 +1,14 @@
-import axios from 'axios';
-import { useToastStore } from '../store/useToastStore';
-import { useAuthStore } from '../store/useAuthStore';
+import axios from "axios";
+import { useToastStore } from "../store/useToastStore";
+import { useAuthStore } from "../store/useAuthStore";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api` // Ghép thêm /api nếu dùng biến môi trường
+  : "/api"; // Fallback cho local (Vite proxy)
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -31,7 +32,7 @@ const processQueue = (error: any, token: string | null = null) => {
 
 // Request Interceptor: Gắn Bearer Access Token vào Header
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -43,31 +44,37 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const isAuthRequest = originalRequest?.url?.includes('/auth/');
-    const isLoginPage = window.location.pathname.includes('/login');
+    const isAuthRequest = originalRequest?.url?.includes("/auth/");
+    const isLoginPage = window.location.pathname.includes("/login");
 
     // 1. Tự động đăng xuất nếu tài khoản bị Quản trị viên khóa
     if (
       !isAuthRequest &&
       !isLoginPage &&
       error.response?.status === 403 &&
-      error.response?.data?.message?.includes('bị khóa')
+      error.response?.data?.message?.includes("bị khóa")
     ) {
       useAuthStore.getState().logout();
       useToastStore.getState().addToast({
-        type: 'error',
-        title: 'Tài khoản đã bị khóa',
-        message: error.response.data.message || 'Tài khoản của bạn đã bị khóa bởi Quản trị viên.',
+        type: "error",
+        title: "Tài khoản đã bị khóa",
+        message:
+          error.response.data.message ||
+          "Tài khoản của bạn đã bị khóa bởi Quản trị viên.",
         duration: 5000,
       });
       setTimeout(() => {
-        window.location.href = '/login';
+        window.location.href = "/login";
       }, 3000);
       return Promise.reject(error);
     }
 
     // 2. Xử lý 401 Unauthorized -> Tự động gia hạn (Refresh Token)
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthRequest
+    ) {
       if (isRefreshing) {
         // Nếu đã có 1 request đang thực hiện Refresh Token -> Xếp hàng đợi
         return new Promise((resolve, reject) => {
@@ -87,22 +94,23 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = localStorage.getItem("refresh_token");
         if (!refreshToken) {
-          throw new Error('Không tìm thấy Refresh Token trong bộ nhớ.');
+          throw new Error("Không tìm thấy Refresh Token trong bộ nhớ.");
         }
 
         // Gọi API Refresh Token chuẩn hóa đường dẫn
-        const refreshUrl = `${API_BASE_URL.replace(/\/+$/, '')}/auth/refresh-token`;
+        const refreshUrl = `${API_BASE_URL.replace(/\/+$/, "")}/auth/refresh-token`;
         const res = await axios.post(refreshUrl, { refreshToken });
 
         if (res.data?.success && res.data?.data?.accessToken) {
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = res.data.data;
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+            res.data.data;
 
           // Cập nhật CẢ Access Token lẫn Refresh Token mới (Refresh Token Rotation)
-          localStorage.setItem('access_token', newAccessToken);
+          localStorage.setItem("access_token", newAccessToken);
           if (newRefreshToken) {
-            localStorage.setItem('refresh_token', newRefreshToken);
+            localStorage.setItem("refresh_token", newRefreshToken);
           }
 
           // Đồng bộ lại Zustand Auth State
@@ -120,7 +128,7 @@ api.interceptors.response.use(
 
           return api(originalRequest);
         } else {
-          throw new Error(res.data?.message || 'Gia hạn Token thất bại.');
+          throw new Error(res.data?.message || "Gia hạn Token thất bại.");
         }
       } catch (refreshErr) {
         processQueue(refreshErr, null);
@@ -133,7 +141,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
