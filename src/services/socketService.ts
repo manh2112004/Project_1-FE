@@ -100,6 +100,13 @@ export const socketService = {
     }
   },
 
+  // Báo hiệu đã đọc các tin nhắn trong phòng chat
+  markAsRead(conversationId: string) {
+    if (socket && socket.connected) {
+      socket.emit('chat:read_messages', { conversationId });
+    }
+  },
+
   // Đăng ký nhận tin nhắn mới từ BE (sự kiện 'chat:new_message')
   onNewMessage(callback: (message: Message) => void) {
     if (socket) {
@@ -116,11 +123,20 @@ export const socketService = {
     }
   },
 
+  // Đăng ký nhận thông báo đối phương đã đọc tin nhắn ('chat:messages_read')
+  onMessagesRead(callback: (data: { conversationId: string; readByUserId: string; readAt: string }) => void) {
+    if (socket) {
+      socket.off('chat:messages_read');
+      socket.on('chat:messages_read', callback);
+    }
+  },
+
   // Hủy lắng nghe các sự kiện chat
   offChatEvents() {
     if (socket) {
       socket.off('chat:new_message');
       socket.off('chat:user_typing');
+      socket.off('chat:messages_read');
     }
   },
 };

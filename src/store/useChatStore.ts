@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { chatService } from '../services/chatService';
 import { socketService } from '../services/socketService';
 import { useToastStore } from './useToastStore';
+import { useAuthStore } from './useAuthStore';
 import type { Conversation, Message, MessageType, Product } from '../types';
 
 interface ChatStore {
@@ -25,9 +26,10 @@ interface ChatStore {
   fetchMyConversations: (storeId?: string) => Promise<void>;
   selectConversation: (conversation: Conversation | null) => Promise<void>;
   fetchMessages: (conversationId: string) => Promise<void>;
-  sendMessage: (content: string, type?: MessageType, metadata?: any) => Promise<boolean>;
+  sendMessage: (content: string, type?: MessageType, metadata?: any, attachments?: any[]) => Promise<boolean>;
   recallMessage: (messageId: string) => Promise<boolean>;
   sendTypingStatus: (isTyping: boolean) => void;
+  markConversationAsRead: (conversationId: string) => void;
   setPendingProductCard: (product: Product | null) => void;
 }
 
@@ -66,6 +68,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const currentActive = get().activeConversation;
       if (currentActive) {
         socketService.joinRoom(currentActive.id);
+        socketService.markAsRead(currentActive.id);
       }
     }
 
@@ -76,6 +79,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const currentActive = get().activeConversation;
       if (currentActive) {
         socketService.joinRoom(currentActive.id);
+        socketService.markAsRead(currentActive.id);
       }
     });
 
@@ -93,9 +97,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Lắng nghe tin nhắn mới từ WebSocket Server (sự kiện BE 'chat:new_message')
     socketService.onNewMessage((newMsg: Message) => {
       const { activeConversation, isOpen, messages, conversations } = get();
+      const currentUserId = useAuthStore.getState().user?.id;
+      const isFromMe = newMsg.senderId === currentUserId;
+      const isCurrentActiveRoom = activeConversation && activeConversation.id === newMsg.conversationId && isOpen;
 
       // 1. Cập nhật tin nhắn trong khung chat active
-      if (activeConversation && newMsg.conversationId === activeConversation.id) {
+      if (isCurrentActiveRoom) {
         const exists = messages.some((m) => m.id === newMsg.id);
         if (!exists) {
           set({
@@ -103,9 +110,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             isTyping: false,
           });
         }
+        // Gửi báo hiệu đã đọc tin nhắn cho đối phương nếu tin nhắn từ người khác
+        if (!isFromMe) {
+          socketService.markAsRead(activeConversation.id);
+        }
       } else {
-        // Thông báo nếu nhận được tin nhắn phòng khác hoặc đang đóng ChatBox
-        if (!isOpen || activeConversation?.id !== newMsg.conversationId) {
+        // Thông báo nếu nhận được tin nhắn phòng khác hoặc đang đóng ChatBox (chỉ khi từ đối phương)
+        if (!isFromMe && (!isOpen || activeConversation?.id !== newMsg.conversationId)) {
           useToastStore.getState().addToast({
             title: 'Tin nhắn mới',
             message: newMsg.content || 'Bạn nhận được tin nhắn mới',
@@ -114,14 +125,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       }
 
-      // 2. Cập nhật lại danh sách cuộc trò chuyện (lastMessageContent, lastMessageAt)
+      // 2. Cập nhật lại danh sách cuộc trò chuyện (lastMessageContent, lastMessageAt, hasUnread)
       const targetConvIndex = conversations.findIndex((c) => c.id === newMsg.conversationId);
+      const newHasUnread = !isFromMe && !isCurrentActiveRoom;
+
       if (targetConvIndex !== -1) {
         const updatedConversations = [...conversations];
         updatedConversations[targetConvIndex] = {
           ...updatedConversations[targetConvIndex],
           lastMessageContent: newMsg.content,
           lastMessageAt: newMsg.createdAt,
+          hasUnread: newHasUnread,
         };
         // Đưa cuộc trò chuyện lên đầu danh sách
         const [moved] = updatedConversations.splice(targetConvIndex, 1);
@@ -147,6 +161,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       } else {
         if (typingTimeout) clearTimeout(typingTimeout);
         set({ isTyping: false, typingUserId: null });
+      }
+    });
+
+    // Lắng nghe tín hiệu đối phương đã đọc tin nhắn (sự kiện BE 'chat:messages_read')
+    socketService.onMessagesRead(({ conversationId, readByUserId, readAt }) => {
+      const { activeConversation, messages } = get();
+      if (activeConversation && conversationId === activeConversation.id) {
+        set({
+          messages: messages.map((m) =>
+            m.senderId !== readByUserId
+              ? { ...m, isRead: true, readAt: readAt || new Date().toISOString() }
+              : m
+          ),
+        });
       }
     });
   },
@@ -199,18 +227,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   selectConversation: async (conversation: Conversation | null) => {
     const currentActive = get().activeConversation;
-    // Rời room cũ nếu có
     if (currentActive) {
       socketService.leaveRoom(currentActive.id);
     }
 
-    set({ activeConversation: conversation, isTyping: false, typingUserId: null });
-
     if (conversation) {
-      // Tham gia room Socket mới ở BE ('chat:join_room')
+      // Đánh dấu đã đọc trong state local
+      const conversations = get().conversations;
+      const updatedConversations = conversations.map((c) =>
+        c.id === conversation.id ? { ...c, hasUnread: false } : c
+      );
+
+      set({
+        activeConversation: { ...conversation, hasUnread: false },
+        conversations: updatedConversations,
+        isTyping: false,
+        typingUserId: null,
+      });
+
+      // Tham gia room Socket mới ở BE ('chat:join_room') và phát tín hiệu đã đọc
       socketService.joinRoom(conversation.id);
+      socketService.markAsRead(conversation.id);
       await get().fetchMessages(conversation.id);
+    } else {
+      set({ activeConversation: null, isTyping: false, typingUserId: null });
     }
+  },
+
+  markConversationAsRead: (conversationId: string) => {
+    socketService.markAsRead(conversationId);
   },
 
   fetchMessages: async (conversationId: string) => {
@@ -227,9 +272,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  sendMessage: async (content: string, type: MessageType = 'TEXT', metadata?: any) => {
+  sendMessage: async (content: string, type: MessageType = 'TEXT', metadata?: any, attachments?: any[]) => {
     const { activeConversation, isSending } = get();
-    if (!activeConversation || isSending || !content.trim()) return false;
+    if (!activeConversation || isSending || (!content.trim() && (!attachments || attachments.length === 0))) return false;
 
     try {
       set({ isSending: true });
@@ -239,9 +284,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const res = await chatService.sendMessage({
         conversationId: activeConversation.id,
-        content: content.trim(),
+        content: content.trim() || '[Hình ảnh]',
         type,
         metadata,
+        attachments,
       });
 
       if (res.success && res.data) {
@@ -256,8 +302,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           });
         }
 
-        // Cập nhật lại cuộc trò chuyện
-        get().fetchMyConversations();
+        // Cập nhật ngay lập tức đoạn tin nhắn preview (lastMessageContent) trong danh sách cuộc trò chuyện
+        const { conversations } = get();
+        const targetIndex = conversations.findIndex((c) => c.id === activeConversation.id);
+        if (targetIndex !== -1) {
+          const updatedConversations = [...conversations];
+          updatedConversations[targetIndex] = {
+            ...updatedConversations[targetIndex],
+            lastMessageContent: newMsg.content,
+            lastMessageAt: newMsg.createdAt,
+            hasUnread: false,
+          };
+          const [moved] = updatedConversations.splice(targetIndex, 1);
+          updatedConversations.unshift(moved);
+          set({ conversations: updatedConversations });
+        } else {
+          get().fetchMyConversations();
+        }
         return true;
       }
       return false;

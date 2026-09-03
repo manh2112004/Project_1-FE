@@ -321,6 +321,8 @@ export interface Conversation {
   storeId: string;
   lastMessageContent: string | null;
   lastMessageAt: string | null;
+  hasUnread?: boolean;
+  unreadCount?: number;
   createdAt: string;
   updatedAt: string;
   store?: {
